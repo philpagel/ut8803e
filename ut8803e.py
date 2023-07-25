@@ -3,16 +3,15 @@
 Talk to a UNI-T UT8803E bench multimeter
 """
 
-import sys, time, threading
-from collections import deque
+import sys, time, datetime
 import click, cp2110
 import construct as C
 
 
 @click.command()
-@click.option("--devno", "-d", default=0, help="Device to use (default=0)")
+@click.option("--debug", "-d", is_flag=True, default=False, help="Turn on debugging information")
 @click.argument("cmd")
-def main(devno, cmd):
+def main(debug, cmd):
     """
 Commands:
 
@@ -31,32 +30,25 @@ Commands:
         exit_dqr        exit DQR mode
 """
 
+    #debug =1
+
     # connect to device    
     ut = ut8000()
 
     # commands
     if cmd == "log":
-        ut.streamparser()
+        pass
+        ut.streamparser(debug)
         #logger(ut)
     elif cmd not in ut.cmd_bytes:
         sys.exit(f"unknown command '{cmd}'")
     else:
         ut.send_request(cmd)
-
-
-def logger(ut):
-
-    for dat in ut:
-        cs = sum(dat[:-2])
-        try:
-            dat = ut.package.parse(dat)
-
-            if cs == dat.checksum:
-                print(f"{time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime())}", dat)
-            else:
-                print("   checksum mismatch")
-        except C.ConstError:
-                print("  ConstError")
+        # The vendor firmware sends a 'confirm' command after
+        # every other command. However, it seems this is not necessary.
+        # We are still doing it here but it remeains unclear what this really
+        # does.
+        ut.send_request("confirm")
 
 
 class ut8000:
@@ -137,23 +129,12 @@ class ut8000:
             "checksum"  / C.Int16ub,
             )
 
-    #package = C.Struct(
-    #        "signature" / C.Const(b"\xab\xcd"),
-    #        "payload"   / C.Prefixed(C.Int8ub, C.GreedyBytes),
-    #        )
-
-    #payload = C.Struct(
-    #        "length"    / C.Bytes(1),
-    #        "data"      / C.Bytes(C.this.length-2),
-    #        "checksum"  / C.Int16ub,
-    #        )
-
     # measurement data
     mdata = C.Struct(
             "rectype"   / C.Bytes(1),
             "mode"      / C.Int8ub,
             "range"     / C.Bytes(1),
-            "value"     / C.Bytes(6),
+            "value"     / C.PaddedString(6, "utf8"),
             "unk0"      / C.Bytes(2),
             "stat1"     / C.Bytes(3),
             "unk2"      / C.Bytes(2)
@@ -198,58 +179,82 @@ class ut8000:
                             stop_bits=cp2110.STOP_BITS.SHORT)
                           )
         self.iface.enable_uart()
-        self.iface.purge_fifos()
 
         self.buf = bytearray()
-        self.data = deque()
         self.ID = None
-
-        # start background reader
-        reader = threading.Thread(target=self.streamreader)
-        reader.start()
-        # start background parser
-        parser = threading.Thread(target=self.streamparser)
-        parser.start()
 
 
     def __del__(self):
         try:
+            self.iface.purge_fifos()
             self.iface.close()
         except:
             pass
 
 
-    def streamreader(self):
-        "Continuously read from data stream"
+    def streamparser(self, debug):
+        "Continuously read from data stream and parse it"
+        
+        if debug:
+            print("Starting streamreader")
+
+        self.iface.purge_fifos()
+        self.send_request("get_ID")
+        self.send_request("confirm")
+
+        t0 = time.time()
+        package_no = 0
+        print("No,timestamp,value")
         while True:
             self.buf.extend(self.iface.read())
 
-    def streamparser(self):
-        "continuously parse the stream"
+            if len(self.buf) >= 26:
+                t = time.time()
+                delta_t = t-t0
 
-        i = 0
-        while True:
-            i += 1
-            # XXX inject get_ID requests for testing every now and then
-            if i % 9 == 8:
-                pass
-                self.send_request("get_ID")
-            if len(self.buf) >= 64:
-                print("len:", len(self.buf))
+                # seek package signature
                 while not self.buf.startswith(b"\xab\xcd"):
-                    print("shift")
                     del(self.buf[0])
-                #if len(self.buf) <32:
-                #    continue
+                    if debug:
+                        print("shift", file=sys.stderr)
+                if len(self.buf) < 26: 
+                    continue
+
                 package = self.package.parse(self.buf)
                 rawpackage = self.package.build(package)
                 checksum = sum(rawpackage[:-2])
-                print(package)
                 if checksum != package["checksum"]:
-                    print("Checksum mismatch")
+                    print("Checksum mismatch", file=sys.stderr)
                 del(self.buf[:len(rawpackage)])
-                self.data.append(package)
-                print(f"packages: {len(self.data)}")
+
+                # parse the payload
+                if package["payload"].startswith(b"\x02"):
+                    mvals = self.mdata.parse(package["payload"])
+                elif package["payload"].startswith(b"\x00"):
+                    self.ID = package["payload"][1:].decode("utf8")
+                    continue
+                else:
+                    print(f"Unknown package type {hex(package['payload'][0])}. Skipping", file=sys.stderr)
+                    continue
+                
+                print(",".join(
+                    (str(x) for x in (
+                        package_no,
+                        datetime.datetime.fromtimestamp(t),
+                        #time.strftime("%Y-%m-%dT%X", time.localtime(t)),
+                        mvals["value"],
+                    )
+                    )
+                ))
+
+                package_no += 1
+                if debug:
+                    print(f"package #{package_no}", file=sys.stderr)
+                    print(f"t: {delta_t}s", file=sys.stderr)
+                    print(f"buflen: {len(self.buf)}", file=sys.stderr)
+                    print(package, file=sys.stderr)
+                    print(mvals, file=sys.stderr)
+                    print(f"{package_no/delta_t} packages/s)\n", file=sys.stderr)
 
 
     def send_request(self, cmd):
@@ -272,3 +277,5 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         pass
+
+
