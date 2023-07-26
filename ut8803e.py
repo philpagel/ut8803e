@@ -10,8 +10,9 @@ import construct as C
 
 @click.command()
 @click.option("--debug", "-d", is_flag=True, default=False, help="Turn on debugging information")
+@click.option("--period", "-p", default=None, help="Length of logging period [HH:MM:SS]. Max period: 23:59:59")
 @click.argument("cmd")
-def main(debug, cmd):
+def main(debug, cmd, period):
     """
 Commands:
 
@@ -30,24 +31,22 @@ Commands:
         exit_dqr        exit DQR mode
 """
 
-    #debug =1
-
+    if period:
+        try:
+            period = time.strptime(period, "%H:%M:%S")
+        except ValueError:
+            sys.exit(f"Invalid time format for option --period / -p ")
+        period = 3600*period.tm_hour + 60*period.tm_min + period.tm_sec
+    
     # connect to device    
     ut = ut8000()
 
-    # commands
     if cmd == "log":
-        pass
-        ut.streamparser(debug)
-        #logger(ut)
+        ut.streamparser(debug, period=period)
     elif cmd not in ut.cmd_bytes:
         sys.exit(f"unknown command '{cmd}'")
     else:
         ut.send_request(cmd)
-        # The vendor firmware sends a 'confirm' command after
-        # every other command. However, it seems this is not necessary.
-        # We are still doing it here but it remeains unclear what this really
-        # does.
         ut.send_request("confirm")
 
 
@@ -95,6 +94,7 @@ class ut8000:
             "Hz",
             "%",
             ]
+
     mode = ["AC Voltage",
             "DC Voltage",
             "AC Current",
@@ -120,8 +120,7 @@ class ut8000:
             "Duty cycle",
             ]
 
-    # package definitions
-
+    # data package
     package = C.Struct(
             "signature" / C.Const(b"\xab\xcd"),
             "length"    / C.Rebuild(C.Int8ub, C.len_(C.this.payload)+2),
@@ -170,7 +169,11 @@ class ut8000:
 
 
     def __init__(self):
+        self.buf = bytearray()
+        self.ID = None
         self.iface = cp2110.CP2110Device()
+        
+        # setup interface
         self.iface.set_uart_config(cp2110.UARTConfig(
                             baud=9600,
                             parity=cp2110.PARITY.NONE,
@@ -179,9 +182,6 @@ class ut8000:
                             stop_bits=cp2110.STOP_BITS.SHORT)
                           )
         self.iface.enable_uart()
-
-        self.buf = bytearray()
-        self.ID = None
 
 
     def __del__(self):
@@ -192,7 +192,7 @@ class ut8000:
             pass
 
 
-    def streamparser(self, debug):
+    def streamparser(self, debug, period=None):
         "Continuously read from data stream and parse it"
         
         if debug:
@@ -206,7 +206,7 @@ class ut8000:
         package_no = 0
         print("No,timestamp,value")
         while True:
-            self.buf.extend(self.iface.read())
+            self.buf.extend(self.iface.read(63))
 
             if len(self.buf) >= 26:
                 t = time.time()
@@ -237,6 +237,13 @@ class ut8000:
                     print(f"Unknown package type {hex(package['payload'][0])}. Skipping", file=sys.stderr)
                     continue
                 
+                if debug:
+                    print(f"\npackage #{package_no}", file=sys.stderr)
+                    print(f"t: {delta_t}s", file=sys.stderr)
+                    print(f"buflen: {len(self.buf)}", file=sys.stderr)
+                    print(package, file=sys.stderr)
+                    print(mvals, file=sys.stderr)
+
                 print(",".join(
                     (str(x) for x in (
                         package_no,
@@ -248,13 +255,8 @@ class ut8000:
                 ))
 
                 package_no += 1
-                if debug:
-                    print(f"package #{package_no}", file=sys.stderr)
-                    print(f"t: {delta_t}s", file=sys.stderr)
-                    print(f"buflen: {len(self.buf)}", file=sys.stderr)
-                    print(package, file=sys.stderr)
-                    print(mvals, file=sys.stderr)
-                    print(f"{package_no/delta_t} packages/s)\n", file=sys.stderr)
+                if period and delta_t >= period:
+                    break
 
 
     def send_request(self, cmd):
