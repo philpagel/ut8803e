@@ -42,7 +42,10 @@ Commands:
     ut = ut8000()
 
     if cmd == "log":
-        ut.streamparser(debug, period=period)
+        ut.streamparser(debug=debug, period=period)
+    elif cmd == "get_ID":
+        ut.streamparser(debug=debug, period=1, logging=False)
+        print(f"Device-ID: {ut.ID}")
     elif cmd not in ut.cmd_bytes:
         sys.exit(f"unknown command '{cmd}'")
     else:
@@ -192,7 +195,7 @@ class ut8000:
             pass
 
 
-    def streamparser(self, debug, period=None):
+    def streamparser(self, logging=True, debug=False, period=None):
         "Continuously read from data stream and parse it"
         
         if debug:
@@ -204,7 +207,8 @@ class ut8000:
 
         t0 = time.time()
         package_no = 0
-        print("No,timestamp,value")
+        if logging:
+            print("No,timestamp,value")
         while True:
             self.buf.extend(self.iface.read(63))
 
@@ -244,15 +248,16 @@ class ut8000:
                     print(package, file=sys.stderr)
                     print(mvals, file=sys.stderr)
 
-                print(",".join(
-                    (str(x) for x in (
-                        package_no,
-                        datetime.datetime.fromtimestamp(t),
-                        #time.strftime("%Y-%m-%dT%X", time.localtime(t)),
-                        mvals["value"],
-                    )
-                    )
-                ))
+                if logging:
+                    print(",".join(
+                        (str(x) for x in (
+                            package_no,
+                            datetime.datetime.fromtimestamp(t),
+                            #time.strftime("%Y-%m-%dT%X", time.localtime(t)),
+                            mvals["value"],
+                        )
+                        )
+                    ))
 
                 package_no += 1
                 if period and delta_t >= period:
