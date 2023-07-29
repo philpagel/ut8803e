@@ -25,9 +25,9 @@ Commands:
         minmax          set/toggle min/max mode\n
         exitminmax      exit min/max mode\n
         rel             set relative mode\n
-        d_val           transistor D value \n
-        q_val           transistor Q value\n
-        r_val           transistor resitance\n
+        d_val           capacitor D value \n
+        q_val           inductance Q value\n
+        r_val           inductance/capacitor resistance\n
         exit_dqr        exit DQR mode
 """
 
@@ -42,7 +42,7 @@ Commands:
     ut = ut8000()
 
     if cmd == "log":
-        ut.streamparser(debug=debug, period=period)
+        ut.streamparser(debug=debug, period=period, logging=1)
     elif cmd == "get_ID":
         ut.streamparser(debug=debug, period=1, logging=False)
         print(f"Device-ID: {ut.ID}")
@@ -51,6 +51,16 @@ Commands:
     else:
         ut.send_request(cmd)
         ut.send_request("confirm")
+
+
+def strcmp(s1, s2):
+    "highlight differences of two stings"
+
+    l = min(len(s1), len(s2))
+    ret = ""
+    for i in range(l):
+        ret += " " if s1[i] == s2[i] else "|"
+    return ret
 
 
 class ut8000:
@@ -73,55 +83,34 @@ class ut8000:
             "confirm"       : b"\x5a\x00",
             }
 
-    unit = ["V",
-            "V",
-            "µA",
-            "mA",
-            "A",
-            "µA",
-            "mA",
-            "A",
-            "Ohm",
-            "",
-            "",
-            "Inductance L",
-            "Inductance Q",
-            "Inductance R",
-            "Capacitance C",
-            "Capacitance D",
-            "Capacitance R",
-            "Triode hFE",
-            "Thyrisor SCR",
-            "C",
-            "F",
-            "Hz",
-            "%",
+    # mode names and ranges
+    mode = [{"name" : "AC Voltage",     "range" : ["600mV", "6V", "60V", "600V", "750V"] },
+            {"name" : "DC Voltage",	    "range" : ["600mV", "6V", "60V", "600V", "1000V"] },
+            {"name" : "AC Current µA",	"range" : ["600µA", "6mA"] },
+            {"name" : "AC Current mA",	"range" : ["60mA", "600mA"] },
+            {"name" : "AC Current A",	"range" : ["10A"] },
+            {"name" : "DC Current µA",	"range" : ["600µA", "6mA"] },
+            {"name" : "DC Current mA" ,	"range" : ["60mA", "600mA"] },
+            {"name" : "DC Current A",	"range" : ["10A"] },
+            {"name" : "Resistance",	    "range" : ["600Ω", "6kΩ", "60kΩ", "600kΩ", "6MΩ", "60MΩ"] },
+            {"name" : "Continuity",	    "range" : ["NA"] },
+            {"name" : "Diode",	        "range" : ["ΔV"] },
+            {"name" : "Inductance L",	"range" : ["600µH", "6mH", "60mH", "600mH", "6H", "60H", "100H"] },
+            {"name" : "Inductance Q",	"range" : ["NA"] },
+            {"name" : "Inductance R",	"range" : ["60Ω", "600Ω", "6kΩ", "60kΩ", "600kΩ", "2MΩ"] },
+            {"name" : "Capacitance C",	"range" : ["6nF", "60nF", "600nF", "6µF", "60µF", "600µF", "6mF"] },
+            {"name" : "Capacitance D",	"range" : ["NA0", "NA1", "NA2", "NA3","NA4"] }, # XXX FIXME: what does this mean?
+            {"name" : "Capacitance R",	"range" : ["60Ω", "600Ω", "6kΩ", "60kΩ", "600kΩ", "2MΩ"] },
+            {"name" : "Triode hFE",	    "range" : ["NA0", "NA1", "NA2", "NA3","NA4"] }, # XXX FIXME
+            {"name" : "Thyrisor SCR",	"range" : ["NA0", "NA1", "NA2", "NA3","NA4"] }, # XXX FIXME
+            {"name" : "Temp °C",	    "range" : ["-40 - 0°C", "0 - 400°C", "400 - 1000°C"] },
+            {"name" : "Temp F",	        "range" : ["-40 - 32°F", "32 - 752°F", "752 - 1832°F"] },
+            {"name" : "Freq",	        "range" : ["600Hz", "6kHz", "60kHz", "600kHz", "6MHz", "20MHz"] },
+            {"name" : "Duty cycle",	    "range" : ["600Hz", "6kHz", "60kHz", "600kHz", "6MHz", "20MHz"] },
             ]
 
-    mode = ["AC Voltage",
-            "DC Voltage",
-            "AC Current",
-            "AC Current",
-            "AC Current",
-            "DC Current",
-            "DC Current" ,
-            "DC Current",
-            "Resistance",
-            "Continuity",
-            "Diode",
-            "Inductance L",
-            "Inductance Q",
-            "Inductance R",
-            "Capacitance C",
-            "Capacitance D",
-            "Capacitance R",
-            "Triode hFE",
-            "Thyrisor SCR",
-            "Temp",
-            "Temp",
-            "Freq",
-            "Duty cycle",
-            ]
+    prefix = ["n", 'µ', 'm', '', 'k', 'M', 'G']
+    prefix = ["M", "", '', '', '', '', '', 'k']
 
     # data package
     package = C.Struct(
@@ -131,43 +120,75 @@ class ut8000:
             "checksum"  / C.Int16ub,
             )
 
-    # measurement data
+    # measurement data payload
     mdata = C.Struct(
             "rectype"   / C.Bytes(1),
             "mode"      / C.Int8ub,
-            "range"     / C.Bytes(1),
-            "value"     / C.PaddedString(6, "utf8"),
-            "unk0"      / C.Bytes(2),
-            "stat1"     / C.Bytes(3),
-            "unk2"      / C.Bytes(2)
+            "range"     / C.PaddedString(1, "ascii"),
+            "value"     / C.PaddedString(6, "ascii"),
+            "stat"      / C.Bytes(7),
             )
 
     # measurement flags
-    stat1 = C.BitStruct(
-            "unk0"      / C.Flag,
-            "unk1"      / C.Flag,
-            "unk2"      / C.Flag,
-            "unk3"      / C.Flag,
-            "unk4"      / C.Flag,
-            "OL"        / C.Flag,
-            "foo"       / C.Flag,
-            "Hold"      / C.Flag,
-            "unk5"      / C.Flag,
-            "unk6"      / C.Flag,
-            "unk7"      / C.Flag,
-            "unk8"      / C.Flag,
-            "unk9"      / C.Flag,
-            "unk10"     / C.Flag,
-            "manrange"  / C.Flag,
-            "rel"       / C.Flag,
-            "unk11"     / C.Flag,
-            "unk12"     / C.Flag,
-            "unk13"     / C.Flag,
-            "unk14"     / C.Flag,
-            "unk15"     / C.Flag, # range?
-            "unk16"     / C.Flag, # range? 
-            "max"       / C.Flag,
-            "min"       / C.Flag
+    stat = C.BitStruct(
+            "unk00"         / C.Flag, 
+            "unk01"         / C.Flag,
+            "unk02"         / C.Flag,
+            "unk03"         / C.Flag,
+            "unk04"         / C.Flag, 
+            "unk05"         / C.Flag,
+            "unk06"         / C.Flag,
+            "unk07"         / C.Flag,
+
+            "unk10"         / C.Flag,
+            "unk11"         / C.Flag,
+            "unk12"         / C.Flag,
+            "unk13"         / C.Flag,
+            "unk14"         / C.Flag,
+            "prefix"        / C.BitsInteger(3), # unit prefix: m, n, µ, ...
+
+            "unk20"         / C.Flag,
+            "unk21"         / C.Flag,
+            "unk22"         / C.Flag,
+            "unk23"         / C.Flag,
+            "unk24"         / C.Flag,
+            "OL"            / C.Flag,
+            "unk25"         / C.Flag,
+            "Hold"          / C.Flag,
+                            
+            "unk31"         / C.Flag,
+            "unk32"         / C.Flag,
+            "unk33"         / C.Flag,
+            "unk34"         / C.Flag,
+            "unk35"         / C.Flag,
+            "err"           / C.Flag, # XXX to be confirmed
+            "manrange"      / C.Flag,
+            "rel"           / C.Flag,
+                            
+            "unk41"         / C.Flag,
+            "unk42"         / C.Flag,
+            "unk43"         / C.Flag,
+            "multiplier"    / C.BitsInteger(3), # multiplier for meaured value?
+            "max"           / C.Flag,
+            "min"           / C.Flag,
+
+            "unk51"         / C.Flag,
+            "unk52"         / C.Flag,
+            "unk53"         / C.Flag,
+            "unk54"         / C.Flag,
+            "unk55"         / C.Flag,
+            "unk56"         / C.Flag,
+            "unk57"         / C.Flag,
+            "unk58"         / C.Flag,
+
+            "unk61"         / C.Flag,
+            "unk62"         / C.Flag,
+            "unk63"         / C.Flag,
+            "unk64"         / C.Flag,
+            "unk65"         / C.Flag,
+            "unk66"         / C.Flag,
+            "left"          / C.Flag, # direction in diode mode
+            "right"         / C.Flag, # direction in diode mode
             )
 
 
@@ -208,7 +229,9 @@ class ut8000:
         t0 = time.time()
         package_no = 0
         if logging:
-            print("No,timestamp,value")
+            print("No,timestamp,mode,range,value,magnitude,magXXX,OL,hold,rel,manrange,min,max")
+
+        last_s = ""
         while True:
             self.buf.extend(self.iface.read(63))
 
@@ -234,6 +257,7 @@ class ut8000:
                 # parse the payload
                 if package["payload"].startswith(b"\x02"):
                     mvals = self.mdata.parse(package["payload"])
+                    stat = self.stat.parse(mvals["stat"])
                 elif package["payload"].startswith(b"\x00"):
                     self.ID = package["payload"][1:].decode("utf8")
                     continue
@@ -242,22 +266,39 @@ class ut8000:
                     continue
                 
                 if debug:
-                    print(f"\npackage #{package_no}", file=sys.stderr)
-                    print(f"t: {delta_t}s", file=sys.stderr)
-                    print(f"buflen: {len(self.buf)}", file=sys.stderr)
-                    print(package, file=sys.stderr)
-                    print(mvals, file=sys.stderr)
+                    #print(f"\npackage #{package_no}", file=sys.stderr)
+                    #print(f"t: {delta_t}s", file=sys.stderr)
+                    #print(f"buflen: {len(self.buf)}", file=sys.stderr)
+                    #print(package, file=sys.stderr)
+                    #print(mvals, file=sys.stderr)
+                    #print(stat, file=sys.stderr)
+                    s = " ".join([format(byte, "08b") for byte in mvals.stat])
+                    if s != last_s:
+                        print("     ", strcmp(last_s, s))
+                        print("stat:", s)
+                    last_s = s
+                    #print("stat:", [bin(byte) for byte in mvals.stat])
 
                 if logging:
                     print(",".join(
-                        (str(x) for x in (
-                            package_no,
-                            datetime.datetime.fromtimestamp(t),
-                            #time.strftime("%Y-%m-%dT%X", time.localtime(t)),
-                            mvals["value"],
-                        )
-                        )
-                    ))
+                                ( str(x) for x in (
+                                    package_no,
+                                    datetime.datetime.fromtimestamp(t),
+                                    self.mode[mvals["mode"]]["name"],
+                                    #mvals["range"],
+                                    self.mode[mvals["mode"]]["range"][int(mvals["range"])],
+                                    mvals["value"],
+                                    stat["prefix"],
+                                    stat["multiplier"],
+                                    stat["OL"],
+                                    stat["Hold"],
+                                    stat["rel"],
+                                    stat["manrange"],
+                                    stat["min"],
+                                    stat["max"],
+                                    ))
+                                )
+                          )
 
                 package_no += 1
                 if period and delta_t >= period:

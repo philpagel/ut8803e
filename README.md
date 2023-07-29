@@ -9,7 +9,7 @@ This is an implementation of the data protocol used by the UNI-T UT8803E
 Currently, only the model UT8803E/UT8803 is supported. 
 
 The software has been tested successfully with a UT8803E on LINUX (Debian 12).
-It does currently support all availabe button press commands and basic data logging and
+It does currently support all available button press commands and basic data logging and
 some status information (`mode`, `OL`, `rel`, `hold` and `min/max`).
 Other status information is still work in progress.
 
@@ -84,7 +84,7 @@ For Debian, this is the way to do it:
 
 # Usage
 
-This is a simple commandline tool that takes exactly on argument and supprts e
+This is a simple command line tool that takes exactly on argument and supports a
 few options:
 
     Usage: ut8803e.py [OPTIONS] CMD
@@ -127,7 +127,7 @@ Most commands act the exact same way as pressing the respective button
 on the instrument. 
 
 Logging data is printed in to `STDOUT` in `csv` format and can be redirected to
-a file using the facilites of your operation system or shell.  E.g. `ut8803e/py
+a file using the facilities of your operation system or shell.  E.g. `ut8803e/py
 log > data.csv` on LINUX.
 
 Debugging information is printed to `STDERR`.
@@ -135,10 +135,10 @@ Debugging information is printed to `STDERR`.
 
 # Protocol reverse engineering
 
-If you are interested in how I went about figuring out the comunication
+If you are interested in how I went about figuring out the communication
 protocol, have a look at my [blog
 post](https://techbotch.org/blog/ut8803e-bench-meter/index.html#ut8803e-bench-meter)
-covering that. Sorry – only in german right now.
+covering that. Sorry – only in German right now.
 
 # Contributing
 
