@@ -83,30 +83,122 @@ class ut8000:
             "confirm"       : b"\x5a\x00",
             }
 
-    # mode names and ranges
-    mode = [{"name" : "AC Voltage",     "range" : ["600mV", "6V", "60V", "600V", "750V"] },
-            {"name" : "DC Voltage",	    "range" : ["600mV", "6V", "60V", "600V", "1000V"] },
-            {"name" : "AC Current µA",	"range" : ["600µA", "6mA"] },
-            {"name" : "AC Current mA",	"range" : ["60mA", "600mA"] },
-            {"name" : "AC Current A",	"range" : ["10A"] },
-            {"name" : "DC Current µA",	"range" : ["600µA", "6mA"] },
-            {"name" : "DC Current mA" ,	"range" : ["60mA", "600mA"] },
-            {"name" : "DC Current A",	"range" : ["10A"] },
-            {"name" : "Resistance",	    "range" : ["600Ω", "6kΩ", "60kΩ", "600kΩ", "6MΩ", "60MΩ"] },
-            {"name" : "Continuity",	    "range" : ["NA"] },
-            {"name" : "Diode",	        "range" : ["ΔV"] },
-            {"name" : "Inductance L",	"range" : ["600µH", "6mH", "60mH", "600mH", "6H", "60H", "100H"] },
-            {"name" : "Inductance Q",	"range" : ["NA"] },
-            {"name" : "Inductance R",	"range" : ["60Ω", "600Ω", "6kΩ", "60kΩ", "600kΩ", "2MΩ"] },
-            {"name" : "Capacitance C",	"range" : ["6nF", "60nF", "600nF", "6µF", "60µF", "600µF", "6mF"] },
-            {"name" : "Capacitance D",	"range" : ["NA0", "NA1", "NA2", "NA3","NA4"] }, # XXX FIXME: what does this mean?
-            {"name" : "Capacitance R",	"range" : ["60Ω", "600Ω", "6kΩ", "60kΩ", "600kΩ", "2MΩ"] },
-            {"name" : "Triode hFE",	    "range" : ["NA0", "NA1", "NA2", "NA3","NA4"] }, # XXX FIXME
-            {"name" : "Thyrisor SCR",	"range" : ["NA0", "NA1", "NA2", "NA3","NA4"] }, # XXX FIXME
-            {"name" : "Temp °C",	    "range" : ["-40 - 0°C", "0 - 400°C", "400 - 1000°C"] },
-            {"name" : "Temp F",	        "range" : ["-40 - 32°F", "32 - 752°F", "752 - 1832°F"] },
-            {"name" : "Freq",	        "range" : ["600Hz", "6kHz", "60kHz", "600kHz", "6MHz", "20MHz"] },
-            {"name" : "Duty cycle",	    "range" : ["600Hz", "6kHz", "60kHz", "600kHz", "6MHz", "20MHz"] },
+    # modes
+    mode = [{
+                "name" : "AC Voltage",     
+                "unit" : ["mV", "V", "V", "V", "V"], 
+                "range" : ["600mV", "6V", "60V", "600V", "750V"],
+             },
+            {
+                "name" : "DC Voltage",	    
+                "unit" : ["mV", "V", "V", "V", "V", "V"], 
+                "range" : ["600mV", "6V", "60V", "600V", "1000V"],
+            },
+            {
+                "name" : "AC Current µA",  
+                "unit" : ["µA", "ma"], 
+                "range" : ["600µA", "6mA"],
+            },
+            {
+                "name" : "AC Current mA",  
+                "unit" : ["ma", "mA"], 
+                "range" : ["60mA", "600mA"],
+            },
+            {
+                "name" : "AC Current A",   
+                "unit" : ["A"],
+                "range" : ["10A"],
+            },
+            {
+                "name" : "DC Current µA",  
+                "unit" : ["µA", "mA"],
+                "range" : ["600µA", "6mA"],
+            },
+            {
+                "name" : "DC Current mA",
+                "unit" : ["mA", "mA"], 
+                "range" : ["60mA", "600mA"],
+            },
+            {
+                "name" : "DC Current A",   
+                "unit" : ["A"],
+                "range" : ["10A"],
+            },
+            {
+                "name" : "Resistance",	    
+                "unit" : ["Ω", "kΩ", "kΩ", "kΩ", "MΩ", "MΩ"], 
+                "range" : ["600Ω", "6kΩ", "60kΩ", "600kΩ", "6MΩ", "60MΩ"],
+            },
+            {
+                "name" : "Continuity",	    
+                "unit" : [""], 
+                "range" : ["NA"] 
+            },
+            {
+                "name" : "Diode",	        
+                "unit" : ["ΔV"], 
+                "range" : ["NA"] 
+            },
+            {
+                "name" : "Inductance L",   
+                "unit" : ["µH", "mH", "mH", "mH", "H", "H", "H"], 
+                "range" : ["600µH", "6mH", "60mH", "600mH", "6H", "60H", "100H"] 
+            },
+            {
+                "name" : "Inductance Q",   
+                "unit" : [""], 
+                "range" : ["NA"] 
+            },
+            {
+                "name" : "Inductance R",   
+                "unit" : ["Ω", "Ω", "kΩ", "kΩ", "kΩ", "MΩ"], 
+                "range" : ["60Ω", "600Ω", "6kΩ", "60kΩ", "600kΩ", "2MΩ"], 
+            },
+            {
+                "name" : "Capacitance C",  
+                "unit" : ["nF", "nF", "F", "µF", "µF", "µF", "mF"], 
+                "range" : ["6nF", "60nF", "600nF", "6µF", "60µF", "600µF", "6mF"],
+            },
+            {
+                "name" : "Capacitance D",  
+                "unit" : [""] * 5, 
+                "range" : ["NA0", "NA1", "NA2", "NA3","NA4"] 
+            }, # XXX FIXME: what do the ranges mean?
+            {
+                "name" : "Capacitance R",  
+                "unit" : ["Ω", "Ω", "kΩ", "kΩ", "kΩ", "MΩ"], 
+                "range" : ["60Ω", "600Ω", "6kΩ", "60kΩ", "600kΩ", "2MΩ"],
+            },
+            {
+                "name" : "Triode hFE",	    
+                "unit" : [""] * 5, 
+                "range" : ["NA0", "NA1", "NA2", "NA3","NA4"],
+            }, # XXX FIXME meaning of ranges?
+            {
+                "name" : "Thyrisor SCR",   
+                "unit" : [""] * 5, 
+                "range" : ["NA0", "NA1", "NA2", "NA3","NA4"],
+            }, # XXX FIXME
+            {
+                "name" : "Temp °C",	    
+                "unit" : ["°C"] * 3, 
+                "range" : ["-40 - 0°C", "0 - 400°C", "400 - 1000°C"],
+            },
+            {
+                "name" : "Temp F",	        
+                "unit" : ["°F"] * 3,
+                "range" : ["-40 - 32°F", "32 - 752°F", "752 - 1832°F"] 
+            },
+            {
+                "name" : "Freq",	        
+                "unit" : ["Hz", "kHz", "kHz", "kHz", "MHz", "MHz"], 
+                "range" : ["600Hz", "6kHz", "60kHz", "600kHz", "6MHz", "20MHz"], 
+            },
+            {
+                "name" : "Duty cycle",	    
+                "unit" : ["%"] * 6, 
+                "range" : ["600Hz", "6kHz", "60kHz", "600kHz", "6MHz", "20MHz"] 
+            },
             ]
 
     prefix = ["n", 'µ', 'm', '', 'k', 'M', 'G']
@@ -145,7 +237,9 @@ class ut8000:
             "unk12"         / C.Flag,
             "unk13"         / C.Flag,
             "unk14"         / C.Flag,
-            "prefix"        / C.BitsInteger(3), # unit prefix: m, n, µ, ...
+            "unk15"         / C.Flag,
+            "unk16"         / C.Flag,
+            "unk17"         / C.Flag,
 
             "unk20"         / C.Flag,
             "unk21"         / C.Flag,
@@ -161,14 +255,16 @@ class ut8000:
             "unk33"         / C.Flag,
             "unk34"         / C.Flag,
             "unk35"         / C.Flag,
-            "err"           / C.Flag, # XXX to be confirmed
+            "err"           / C.Flag,
             "manrange"      / C.Flag,
             "rel"           / C.Flag,
                             
             "unk41"         / C.Flag,
             "unk42"         / C.Flag,
             "unk43"         / C.Flag,
-            "multiplier"    / C.BitsInteger(3), # multiplier for meaured value?
+            "unk44"         / C.Flag,
+            "unk45"         / C.Flag,
+            "unk46"         / C.Flag,
             "max"           / C.Flag,
             "min"           / C.Flag,
 
@@ -229,7 +325,7 @@ class ut8000:
         t0 = time.time()
         package_no = 0
         if logging:
-            print("No,timestamp,mode,range,value,magnitude,magXXX,OL,hold,rel,manrange,min,max")
+            print("No,timestamp,mode,range,value,unit,OL,hold,rel,manrange,min,max,err")
 
         last_s = ""
         while True:
@@ -288,14 +384,14 @@ class ut8000:
                                     #mvals["range"],
                                     self.mode[mvals["mode"]]["range"][int(mvals["range"])],
                                     mvals["value"],
-                                    stat["prefix"],
-                                    stat["multiplier"],
+                                    self.mode[mvals["mode"]]["unit"][int(mvals["range"])],
                                     stat["OL"],
                                     stat["Hold"],
                                     stat["rel"],
                                     stat["manrange"],
                                     stat["min"],
                                     stat["max"],
+                                    stat["err"],
                                     ))
                                 )
                           )

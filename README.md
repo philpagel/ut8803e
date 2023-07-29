@@ -6,23 +6,12 @@ This is an implementation of the data protocol used by the UNI-T UT8803E
 
 # Status 
 
-Currently, only the model UT8803E/UT8803 is supported. 
+The software provides all functionality of the original vendor software (but
+without a GUI) plus a few things that the are not available in the windows
+program. However, it is not feature complete, yet: There are still a few status
+flags that are not logged, yet. 
 
-The software has been tested successfully with a UT8803E on LINUX (Debian 12).
-It does currently support all available button press commands and basic data logging and
-some status information (`mode`, `OL`, `rel`, `hold` and `min/max`).
-Other status information is still work in progress.
-
-The UNI-T documentation suggests that, with some modifications, this *may* work
-with other models, too:
-
-* UT8802/UT8802N
-* UT632/UT632N
-* UT803/UT803N
-* UT804/UT804N
-
-Unfortunately, I do not have access to any of those models so I may be wrong.
-If you have one of them and are willing to help, please get in touch.
+It has been tested successfully with a UT8803E on LINUX (Debian 12).
 
 
 # In a nutshell
@@ -148,4 +137,15 @@ want to implement or fix something yourself, you can submit a pull-request that
 addresses your issue. It makes sense to first discuss the issue before you get
 to work with coding. Please open a new branch for your pull request – do not
 use `main`.
+
+The UNI-T documentation suggests that, with some modifications, this *may* work
+with other models, too:
+
+* UT8802/UT8802N
+* UT632/UT632N
+* UT803/UT803N
+* UT804/UT804N
+
+Unfortunately, I do not have access to any of those models so I may be wrong.
+If you have one of them and are willing to help, please get in touch.
 
