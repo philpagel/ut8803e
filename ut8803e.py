@@ -4,6 +4,7 @@ Talk to a UNI-T UT8803E bench multimeter
 """
 
 import sys, time, datetime
+from collections import OrderedDict, deque
 import click, cp2110
 import construct as C
 
@@ -39,12 +40,12 @@ Commands:
         period = 3600*period.tm_hour + 60*period.tm_min + period.tm_sec
     
     # connect to device    
-    ut = ut8000()
+    ut = ut8000(debug=debug)
 
     if cmd == "log":
-        ut.streamparser(debug=debug, period=period, logging=1)
+        ut.streamreader(period=period, logging=1)
     elif cmd == "get_ID":
-        ut.streamparser(debug=debug, period=1, logging=False)
+        ut.streamreader(period=1, logging=False)
         print(f"Device-ID: {ut.ID}")
     elif cmd not in ut.cmd_bytes:
         sys.exit(f"unknown command '{cmd}'")
@@ -288,11 +289,15 @@ class ut8000:
             )
 
 
-    def __init__(self):
+    def __init__(self, debug=False):
         self.buf = bytearray()
         self.ID = None
         self.iface = cp2110.CP2110Device()
-        
+        self.package_no = 0
+        self.debug = debug
+        self.data = deque()
+        self.first = True
+
         # setup interface
         self.iface.set_uart_config(cp2110.UARTConfig(
                             baud=9600,
@@ -312,95 +317,6 @@ class ut8000:
             pass
 
 
-    def streamparser(self, logging=True, debug=False, period=None):
-        "Continuously read from data stream and parse it"
-        
-        if debug:
-            print("Starting streamreader")
-
-        self.iface.purge_fifos()
-        self.send_request("get_ID")
-        self.send_request("confirm")
-
-        t0 = time.time()
-        package_no = 0
-        if logging:
-            print("No,timestamp,mode,range,value,unit,OL,hold,rel,manrange,min,max,err")
-
-        last_s = ""
-        while True:
-            self.buf.extend(self.iface.read(63))
-
-            if len(self.buf) >= 26:
-                t = time.time()
-                delta_t = t-t0
-
-                # seek package signature
-                while not self.buf.startswith(b"\xab\xcd"):
-                    del(self.buf[0])
-                    if debug:
-                        print("shift", file=sys.stderr)
-                if len(self.buf) < 26: 
-                    continue
-
-                package = self.package.parse(self.buf)
-                rawpackage = self.package.build(package)
-                checksum = sum(rawpackage[:-2])
-                if checksum != package["checksum"]:
-                    print("Checksum mismatch", file=sys.stderr)
-                del(self.buf[:len(rawpackage)])
-
-                # parse the payload
-                if package["payload"].startswith(b"\x02"):
-                    mvals = self.mdata.parse(package["payload"])
-                    stat = self.stat.parse(mvals["stat"])
-                elif package["payload"].startswith(b"\x00"):
-                    self.ID = package["payload"][1:].decode("utf8")
-                    continue
-                else:
-                    print(f"Unknown package type {hex(package['payload'][0])}. Skipping", file=sys.stderr)
-                    continue
-                
-                if debug:
-                    #print(f"\npackage #{package_no}", file=sys.stderr)
-                    #print(f"t: {delta_t}s", file=sys.stderr)
-                    #print(f"buflen: {len(self.buf)}", file=sys.stderr)
-                    #print(package, file=sys.stderr)
-                    #print(mvals, file=sys.stderr)
-                    #print(stat, file=sys.stderr)
-                    s = " ".join([format(byte, "08b") for byte in mvals.stat])
-                    if s != last_s:
-                        print("     ", strcmp(last_s, s))
-                        print("stat:", s)
-                    last_s = s
-                    #print("stat:", [bin(byte) for byte in mvals.stat])
-
-                if logging:
-                    print(",".join(
-                                ( str(x) for x in (
-                                    package_no,
-                                    datetime.datetime.fromtimestamp(t),
-                                    self.mode[mvals["mode"]]["name"],
-                                    #mvals["range"],
-                                    self.mode[mvals["mode"]]["range"][int(mvals["range"])],
-                                    mvals["value"],
-                                    self.mode[mvals["mode"]]["unit"][int(mvals["range"])],
-                                    stat["OL"],
-                                    stat["Hold"],
-                                    stat["rel"],
-                                    stat["manrange"],
-                                    stat["min"],
-                                    stat["max"],
-                                    stat["err"],
-                                    ))
-                                )
-                          )
-
-                package_no += 1
-                if period and delta_t >= period:
-                    break
-
-
     def send_request(self, cmd):
         "send cmd request to the instrument"
 
@@ -414,6 +330,108 @@ class ut8000:
                     ),
                 )
         self.iface.write(package)
+
+
+    def streamreader(self, logging=True, debug=False, period=None):
+        "Continuously read from data stream and process it"
+        
+        self.iface.purge_fifos()
+        self.send_request("get_ID")
+        self.send_request("confirm")
+
+        t0 = time.time()
+
+        last_s = ""
+        t = time.time()
+        while True:
+            self.buf.extend(self.iface.read(63))
+
+            if len(self.buf) >= 26:
+                # seek package signature
+                while not self.buf.startswith(b"\xab\xcd"):
+                    del(self.buf[0])
+                    if self.debug:
+                        print("shift", file=sys.stderr)
+                else:
+                    dat = self.parsepackages()
+                    if logging:
+                        self.logger()
+                if period and t-t0 >= period:
+                    break
+
+
+    def parsepackages(self):
+        "parse stream buffer and return data as a dict"
+
+        i = 0
+        while len(self.buf) >= 26:
+            package = self.package.parse(self.buf)
+            rawpackage = self.package.build(package)
+            checksum = sum(rawpackage[:-2])
+            del(self.buf[:len(rawpackage)])
+            i += 1
+
+            if checksum != package["checksum"]:
+                print("Warning: Checksum mismatch", file=sys.stderr)
+
+            if package["payload"].startswith(b"\x02"): # data package
+                mvals = self.mdata.parse(package["payload"])
+                stat = self.stat.parse(mvals["stat"])
+                dat = OrderedDict([
+                    ("No",          self.package_no),
+                    ("timestamp",   datetime.datetime.fromtimestamp(time.time())),
+                    ("mode",        self.mode[mvals["mode"]]["name"]),
+                    ("range",       self.mode[mvals["mode"]]["range"][int(mvals["range"])]),
+                    ("value",       mvals["value"]),
+                    ("unit",        self.mode[mvals["mode"]]["unit"][int(mvals["range"])]),
+                    ("OL",          stat["OL"]),
+                    ("hold",        stat["Hold"]),
+                    ("rel",         stat["rel"]),
+                    ("manrange",    "manual" if stat["manrange"] else "auto"),
+                    ("min",         stat["min"]),
+                    ("max",         stat["max"]),
+                    ("err",         stat["err"]),
+                ])
+                self.data.append(dat)
+                self.package_no += 1
+                if self.debug:
+                    self.debug_output()
+            elif package["payload"].startswith(b"\x00"): # device ID package
+                self.ID = package["payload"][1:].decode("utf8")
+            else:
+                print(f"Warning: Unknown package type {hex(package['payload'][0])}. Skipping", file=sys.stderr)
+
+        if i > 1 :
+            print(f"Warning: parsed {i} packages from buffer => timestamps may be incorrect", file=sys.stderr)
+
+
+    def logger(self):
+        "print logging data"
+
+        try:
+            dat = self.data.popleft()
+            if self.first: 
+                print(",".join( [str(x) for x in dat.keys()] ))
+                self.first = False
+            print(",".join( [str(x) for x in dat.values()] ))
+        except IndexError:
+            pass
+
+
+    def debug_output(self):
+        "print debugging data ot STDERR"
+
+        #print(f"t: {delta_t}s", file=sys.stderr)
+
+        #print(f"buflen: {len(self.buf)}", file=sys.stderr)
+        #print(package, file=sys.stderr)
+        #print(mvals, file=sys.stderr)
+        #print(stat, file=sys.stderr)
+        s = " ".join([format(byte, "08b") for byte in mvals.stat])
+        if s != last_s:
+            print("     ", strcmp(last_s, s))
+            print("stat:", s)
+        last_s = s
 
 
 if __name__ == "__main__":
