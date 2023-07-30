@@ -384,13 +384,12 @@ class ut8000:
                     ("range",       self.mode[mvals["mode"]]["range"][int(mvals["range"])]),
                     ("value",       mvals["value"]),
                     ("unit",        self.mode[mvals["mode"]]["unit"][int(mvals["range"])]),
-                    ("OL",          stat["OL"]),
-                    ("hold",        stat["Hold"]),
-                    ("rel",         stat["rel"]),
+                    ("OL",          "OL" if stat["OL"] else ""),
+                    ("hold",        "hold" if stat["Hold"] else ""),
+                    ("rel",         "rel" if stat["rel"] else ""),
                     ("manrange",    "manual" if stat["manrange"] else "auto"),
-                    ("min",         stat["min"]),
-                    ("max",         stat["max"]),
-                    ("err",         stat["err"]),
+                    ("minmax",      "min" if stat["min"] else "max" if stat["max"] else ""),
+                    ("err",         "Err" if stat["err"] else ""),
                 ])
                 self.data.append(dat)
                 self.package_no += 1
