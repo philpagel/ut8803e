@@ -10,12 +10,11 @@ import construct as C
 
 
 @click.command()
-@click.option("--debug", "-d", is_flag=True, default=False, help="Turn on debugging information")
 @click.option("--period", "-p", default=None, help="Length of logging period [HH:MM:SS]. Max period: 23:59:59")
-@click.option("--json", "-j", is_flag=True, default=False, help="Log data in JSON format instead of CSV")
-@click.option("--full", "-f", is_flag=True, default=False, help="show value even it ERR or OL apply")
+@click.option("--format", "-f", default="csv", help="Logging data format (csv/json/reversing)")
+@click.option("--full", is_flag=True, default=False, help="show value even if ERR or OL apply")
 @click.argument("cmd")
-def main(debug, cmd, period, json, full):
+def main(cmd, period, format, full):
     """
 Commands:
 
@@ -42,9 +41,7 @@ Commands:
         period = 3600*period.tm_hour + 60*period.tm_min + period.tm_sec
     
     # connect to device    
-    ut = ut8000(debug=debug, full=full)
-    if json:
-        ut.format="json"
+    ut = ut8000(full=full, format=format)
 
     if cmd == "log":
         ut.streamreader(period=period, logging=1)
@@ -252,7 +249,7 @@ class ut8000:
             "unk23"         / C.Flag,
             "unk24"         / C.Flag,
             "OL"            / C.Flag,
-            "unk25"         / C.Flag,
+            "sign"          / C.Flag, # XXX add me
             "Hold"          / C.Flag,
                             
             "unk31"         / C.Flag,
@@ -288,21 +285,21 @@ class ut8000:
             "unk64"         / C.Flag,
             "unk65"         / C.Flag,
             "unk66"         / C.Flag,
-            "left"          / C.Flag, # direction in diode mode
-            "right"         / C.Flag, # direction in diode mode
+            "forward"       / C.Flag, # diode polarity: <-
+            "reverse"       / C.Flag, # diode polarity: ->
             )
 
 
-    def __init__(self, debug=False, full=False):
+    def __init__(self, format=format, full=False):
         self.buf = bytearray()
         self.ID = None
         self.iface = cp2110.CP2110Device()
         self.package_no = 0
-        self.debug = debug
         self.full = full
         self.data = deque()
-        self.format = "csv"
+        self.format = format
         self.first = True
+        self.last_s = ""
 
         # setup interface
         self.iface.set_uart_config(cp2110.UARTConfig(
@@ -338,7 +335,7 @@ class ut8000:
         self.iface.write(package)
 
 
-    def streamreader(self, logging=True, debug=False, period=None):
+    def streamreader(self, logging=True, period=None):
         "Continuously read from data stream and process it"
         
         self.iface.purge_fifos()
@@ -356,8 +353,7 @@ class ut8000:
                 # seek package signature
                 while not self.buf.startswith(b"\xab\xcd"):
                     del(self.buf[0])
-                    if self.debug:
-                        print("shift", file=sys.stderr)
+                    print("shift", file=sys.stderr)
                 else:
                     dat = self.parsepackages()
                     if logging:
@@ -393,18 +389,17 @@ class ut8000:
                     ("OL",          "OL" if stat["OL"] else ""),
                     ("hold",        "hold" if stat["Hold"] else ""),
                     ("rel",         "rel" if stat["rel"] else ""),
-                    ("polarity",    "forward" if stat["left"] else "reverse" if stat["right"] else ""),
+                    ("polarity",    "forward" if stat["forward"] else "reverse" if stat["reverse"] else ""),
                     ("manrange",    "manual" if stat["manrange"] else "auto"),
                     ("minmax",      "min" if stat["min"] else "max" if stat["max"] else ""),
                     ("err",         "Err" if stat["err"] else ""),
+                    ("stat",        mvals["stat"]),
                 ])
                 if not self.full:
                     if dat["err"] == "Err" or dat["OL"] == "OL":
                         dat["value"] =""
                 self.data.append(dat)
                 self.package_no += 1
-                if self.debug:
-                    self.debug_output()
             elif package["payload"].startswith(b"\x00"): # device ID package
                 self.ID = package["payload"][1:].decode("utf8")
             else:
@@ -413,39 +408,34 @@ class ut8000:
         if i > 1 :
             print(f"Warning: parsed {i} packages from buffer => timestamps may be incorrect", file=sys.stderr)
 
+
     def logger(self):
         "print logging data"
 
         try:
             dat = self.data.popleft()
             if self.format == "csv":
+                del dat["stat"]
                 if self.first: 
                     print(",".join( [str(x) for x in dat.keys()] ))
                     self.first = False
                 print(",".join( [str(x) for x in dat.values()] ))
             elif self.format == "json":
+                del dat["stat"]
                 dat["timestamp"] = str(dat["timestamp"])
                 print(json.dumps(dat))
+            elif self.format == "reversing":
+                s = " ".join([format(byte, "08b") for byte in dat["stat"]])
+                if s != self.last_s:
+                    print("     ", strcmp(self.last_s, s))
+                    print("stat:", s)
+                self.last_s = s
             else:
-                sys.exit(f"unknown format '{format}'")
+                sys.exit(f"unknown format '{self.format}'")
         except IndexError:
             pass
 
 
-    def debug_output(self):
-        "print debugging data ot STDERR"
-
-        #print(f"t: {delta_t}s", file=sys.stderr)
-
-        #print(f"buflen: {len(self.buf)}", file=sys.stderr)
-        #print(package, file=sys.stderr)
-        #print(mvals, file=sys.stderr)
-        #print(stat, file=sys.stderr)
-        s = " ".join([format(byte, "08b") for byte in mvals.stat])
-        if s != last_s:
-            print("     ", strcmp(last_s, s))
-            print("stat:", s)
-        last_s = s
 
 
 if __name__ == "__main__":

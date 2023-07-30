@@ -109,12 +109,9 @@ few options:
               exit_dqr        exit DQR mode
 
     Options:
-      -d, --debug        Turn on debugging information
       -p, --period TEXT  Length of logging period [HH:MM:SS]. Max period: 23:59:59
-      -j, --json         Log data in JSON format instead of CSV
-      -f, --full         show value even it ERR or OL apply
-      --help             Show this message and exit.
-
+      -f, --format TEXT  Logging data format (csv/json/reversing)
+      --full             show value even if ERR or OL app
 
 Most commands act the exact same way as pressing the respective button
 on the instrument. 
