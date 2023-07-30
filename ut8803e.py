@@ -3,7 +3,7 @@
 Talk to a UNI-T UT8803E bench multimeter
 """
 
-import sys, time, datetime
+import sys, time, datetime, json
 from collections import OrderedDict, deque
 import click, cp2110
 import construct as C
@@ -12,8 +12,9 @@ import construct as C
 @click.command()
 @click.option("--debug", "-d", is_flag=True, default=False, help="Turn on debugging information")
 @click.option("--period", "-p", default=None, help="Length of logging period [HH:MM:SS]. Max period: 23:59:59")
+@click.option("--json", "-j", is_flag=True, default=False, help="Log data in JSON format instead of CSV")
 @click.argument("cmd")
-def main(debug, cmd, period):
+def main(debug, cmd, period, json):
     """
 Commands:
 
@@ -41,6 +42,8 @@ Commands:
     
     # connect to device    
     ut = ut8000(debug=debug)
+    if json:
+        ut.format="json"
 
     if cmd == "log":
         ut.streamreader(period=period, logging=1)
@@ -296,6 +299,7 @@ class ut8000:
         self.package_no = 0
         self.debug = debug
         self.data = deque()
+        self.format = "csv"
         self.first = True
 
         # setup interface
@@ -404,16 +408,21 @@ class ut8000:
         if i > 1 :
             print(f"Warning: parsed {i} packages from buffer => timestamps may be incorrect", file=sys.stderr)
 
-
     def logger(self):
         "print logging data"
 
         try:
             dat = self.data.popleft()
-            if self.first: 
-                print(",".join( [str(x) for x in dat.keys()] ))
-                self.first = False
-            print(",".join( [str(x) for x in dat.values()] ))
+            if self.format == "csv":
+                if self.first: 
+                    print(",".join( [str(x) for x in dat.keys()] ))
+                    self.first = False
+                print(",".join( [str(x) for x in dat.values()] ))
+            elif self.format == "json":
+                dat["timestamp"] = str(dat["timestamp"])
+                print(json.dumps(dat))
+            else:
+                sys.exit(f"unknown format '{format}'")
         except IndexError:
             pass
 
