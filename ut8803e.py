@@ -348,8 +348,8 @@ class ut8000:
         t0 = time.time()
 
         last_s = ""
-        t = time.time()
         while True:
+            t = time.time()
             self.buf.extend(self.iface.read(63))
 
             if len(self.buf) >= 26:
