@@ -11,10 +11,11 @@ import construct as C
 
 @click.command()
 @click.option("--period", "-p", default=None, help="Length of logging period [HH:MM:SS]. Max period: 23:59:59")
+@click.option("--interval", "-i", default=0, help="Logging interval [s]")
 @click.option("--format", "-f", default="csv", help="Logging data format (csv/json/reversing)")
 @click.option("--full", is_flag=True, default=False, help="show value even if ERR or OL apply")
 @click.argument("cmd")
-def main(cmd, period, format, full):
+def main(cmd, period, interval, format, full):
     """
 Commands:
 
@@ -44,7 +45,7 @@ Commands:
     ut = ut8000(full=full, format=format)
 
     if cmd == "log":
-        ut.streamreader(period=period, logging=1)
+        ut.streamreader(period=period, interval=interval)
     elif cmd == "get_ID":
         ut.streamreader(period=1, logging=False)
         print(f"Device-ID: {ut.ID}")
@@ -83,6 +84,7 @@ class ut8000:
             "r_val"         : b"\x51\x00",
             "exit_dqr"      : b"\x50\x00",
             "confirm"       : b"\x5a\x00",
+            #"unk1"          : b"\x58\x00", # sent by windows software at the begining
             }
 
     # modes
@@ -229,7 +231,7 @@ class ut8000:
             "unk01"         / C.Flag,
             "unk02"         / C.Flag,
             "unk03"         / C.Flag,
-            "unk04"         / C.Flag, 
+            "unk04"         / C.Flag, # XXX bargraph length?
             "unk05"         / C.Flag,
             "unk06"         / C.Flag,
             "unk07"         / C.Flag,
@@ -241,7 +243,7 @@ class ut8000:
             "unk14"         / C.Flag,
             "unk15"         / C.Flag,
             "unk16"         / C.Flag,
-            "unk17"         / C.Flag,
+            "serpal"        / C.Flag, # XXX: confirm
 
             "unk20"         / C.Flag,
             "unk21"         / C.Flag,
@@ -249,7 +251,7 @@ class ut8000:
             "unk23"         / C.Flag,
             "unk24"         / C.Flag,
             "OL"            / C.Flag,
-            "sign"          / C.Flag, # XXX add me
+            "unk26"         / C.Flag,
             "Hold"          / C.Flag,
                             
             "unk31"         / C.Flag,
@@ -290,16 +292,22 @@ class ut8000:
             )
 
 
-    def __init__(self, format=format, full=False):
-        self.buf = bytearray()
-        self.ID = None
+    def __init__(self, format="csv", full=False):
         self.iface = cp2110.CP2110Device()
-        self.package_no = 0
-        self.full = full
+        self.buf = bytearray()
         self.data = deque()
+        self.ID = None  # instrument ID
+
+        self.full = full    #
+        # logging parameters
+        self.interval = 0
+        self.period = 0
         self.format = format
-        self.first = True
-        self.last_s = ""
+        
+        self.package_no = 0
+        self.first = True   # first logging package
+        self.last_s = ""    # last status data
+        self.__last_logtime = datetime.datetime.fromtimestamp(time.time()) 
 
         # setup interface
         self.iface.set_uart_config(cp2110.UARTConfig(
@@ -335,16 +343,16 @@ class ut8000:
         self.iface.write(package)
 
 
-    def streamreader(self, logging=True, period=None):
+    def streamreader(self, logging=True, period=None, interval=0):
         "Continuously read from data stream and process it"
         
         self.iface.purge_fifos()
         self.send_request("get_ID")
         self.send_request("confirm")
+        self.interval = datetime.timedelta(seconds=interval)
 
         t0 = time.time()
 
-        last_s = ""
         while True:
             t = time.time()
             self.buf.extend(self.iface.read(63))
@@ -380,7 +388,7 @@ class ut8000:
                 mvals = self.mdata.parse(package["payload"])
                 stat = self.stat.parse(mvals["stat"])
                 dat = OrderedDict([
-                    ("No",          self.package_no),
+                    #("No",          self.package_no),
                     ("timestamp",   datetime.datetime.fromtimestamp(time.time())),
                     ("mode",        self.mode[mvals["mode"]]["name"]),
                     ("range",       self.mode[mvals["mode"]]["range"][int(mvals["range"])]),
@@ -414,24 +422,27 @@ class ut8000:
 
         try:
             dat = self.data.popleft()
-            if self.format == "csv":
-                del dat["stat"]
-                if self.first: 
-                    print(",".join( [str(x) for x in dat.keys()] ))
-                    self.first = False
-                print(",".join( [str(x) for x in dat.values()] ))
-            elif self.format == "json":
-                del dat["stat"]
-                dat["timestamp"] = str(dat["timestamp"])
-                print(json.dumps(dat))
-            elif self.format == "reversing":
-                s = " ".join([format(byte, "08b") for byte in dat["stat"]])
-                if s != self.last_s:
-                    print("     ", strcmp(self.last_s, s))
-                    print("stat:", s)
-                self.last_s = s
-            else:
-                sys.exit(f"unknown format '{self.format}'")
+            if dat["timestamp"] - self.__last_logtime >= self.interval:
+                self.__last_logtime = dat["timestamp"]
+                if self.format == "csv":
+                    del dat["stat"]
+                    if self.first: 
+                        print(",".join( [str(x) for x in dat.keys()] ))
+                        self.first = False
+                    print(",".join( [str(x) for x in dat.values()] ))
+                elif self.format == "json":
+                    del dat["stat"]
+                    dat["timestamp"] = str(dat["timestamp"])
+                    print(json.dumps(dat))
+                elif self.format == "reversing":
+                    s = " ".join([format(byte, "08b") for byte in dat["stat"]])
+                    s_byte = "".join([format(byte, "02x") for byte in dat["stat"]])
+                    if s != self.last_s:
+                        print("     ", strcmp(self.last_s, s))
+                        print("stat:", s, ":", s_byte)
+                    self.last_s = s
+                else:
+                    sys.exit(f"unknown format '{self.format}'")
         except IndexError:
             pass
 

@@ -13,8 +13,6 @@ flags that seem to exist but I haven't figured out their meaning, yet.
 
 It has been tested successfully with a UT8803E on LINUX (Debian 12).
 
-This is a failry young project so there may still be some bugs that I didn't
-catch.
 
 # In a nutshell
 
@@ -116,9 +114,15 @@ few options:
 Most commands act the exact same way as pressing the respective button
 on the instrument. 
 
-Logging data is printed in to `STDOUT` in `csv` format and can be redirected to
-a file using the facilities of your operation system or shell.  E.g. `ut8803e/py
-log > data.csv` on LINUX.
+Logging data is printed in to `STDOUT` in `csv` format, by default.  You can
+also get JSON records with `--format json`. Finally, there is `--format
+reversing` which will log binary and hex data of the status record. This is
+intended for reverse engineering additional features or adding support for other
+models.
+
+and can be
+redirected to a file using the facilities of your operation system or shell.
+E.g. `ut8803e/py log > data.csv` on LINUX.
 
 Warnings and Debugging information are printed to `STDERR`.
 
@@ -139,11 +143,11 @@ addresses your issue. It makes sense to first discuss the issue before you get
 to work with coding. Please open a new branch for your pull request – do not
 use `main`.
 
-The UNI-T programming manual suggests that there are at leaist two more status flags that
+The UNI-T programming manual suggests that there are at least two more status flags that
 haven't been implemented, yet and that I do not understand:
 
-* Series/Parallel (PAL/SER) in capacity and inductance mode. There are
-  corresponfing indicatiors on the LCD but I have no idea waht that means.
+* Series/Parallel (SER/PAL/) in capacity and inductance mode. There are
+  corresponding indicators on the LCD but I have no idea what that means.
 * Over/underflow – again not sure what exactly that is supposed to be.
   
 So if you know anything about that – get in touch.
