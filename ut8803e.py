@@ -387,6 +387,7 @@ class ut8000:
                     ("OL",          "OL" if stat["OL"] else ""),
                     ("hold",        "hold" if stat["Hold"] else ""),
                     ("rel",         "rel" if stat["rel"] else ""),
+                    ("polarity",    "forward" if stat["left"] else "reverse" if stat["right"] else ""),
                     ("manrange",    "manual" if stat["manrange"] else "auto"),
                     ("minmax",      "min" if stat["min"] else "max" if stat["max"] else ""),
                     ("err",         "Err" if stat["err"] else ""),
