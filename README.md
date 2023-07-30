@@ -7,12 +7,14 @@ This is an implementation of the data protocol used by the UNI-T UT8803E
 # Status 
 
 The software provides all functionality of the original vendor software (but
-without a GUI) plus a few things that the are not available in the windows
+without a GUI) plus a few things that are not available in the windows
 program. However, it is not feature complete, yet: There are still a few status
-flags that are not logged, yet. 
+flags that seem to exist but I haven't figured out their meaning, yet.
 
 It has been tested successfully with a UT8803E on LINUX (Debian 12).
 
+This is a failry young project so there may still be some bugs that I didn't
+catch.
 
 # In a nutshell
 
@@ -98,17 +100,19 @@ few options:
 
               rel             set relative mode
 
-              d_val           transistor D value
+              d_val           capacitor D value
 
-              q_val           transistor Q value
+              q_val           inductance Q value
 
-              r_val           transistor resistance
+              r_val           inductance/capacitor resistance
 
               exit_dqr        exit DQR mode
 
     Options:
       -d, --debug        Turn on debugging information
       -p, --period TEXT  Length of logging period [HH:MM:SS]. Max period: 23:59:59
+      -j, --json         Log data in JSON format instead of CSV
+      -f, --full         show value even it ERR or OL apply
       --help             Show this message and exit.
 
 
@@ -119,7 +123,7 @@ Logging data is printed in to `STDOUT` in `csv` format and can be redirected to
 a file using the facilities of your operation system or shell.  E.g. `ut8803e/py
 log > data.csv` on LINUX.
 
-Debugging information is printed to `STDERR`.
+Warnings and Debugging information are printed to `STDERR`.
 
 
 # Protocol reverse engineering
@@ -137,6 +141,15 @@ want to implement or fix something yourself, you can submit a pull-request that
 addresses your issue. It makes sense to first discuss the issue before you get
 to work with coding. Please open a new branch for your pull request – do not
 use `main`.
+
+The UNI-T programming manual suggests that there are at leaist two more status flags that
+haven't been implemented, yet and that I do not understand:
+
+* Series/Parallel (PAL/SER) in capacity and inductance mode. There are
+  corresponfing indicatiors on the LCD but I have no idea waht that means.
+* Over/underflow – again not sure what exactly that is supposed to be.
+  
+So if you know anything about that – get in touch.
 
 The UNI-T documentation suggests that, with some modifications, this *may* work
 with other models, too:

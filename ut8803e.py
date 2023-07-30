@@ -13,8 +13,9 @@ import construct as C
 @click.option("--debug", "-d", is_flag=True, default=False, help="Turn on debugging information")
 @click.option("--period", "-p", default=None, help="Length of logging period [HH:MM:SS]. Max period: 23:59:59")
 @click.option("--json", "-j", is_flag=True, default=False, help="Log data in JSON format instead of CSV")
+@click.option("--full", "-f", is_flag=True, default=False, help="show value even it ERR or OL apply")
 @click.argument("cmd")
-def main(debug, cmd, period, json):
+def main(debug, cmd, period, json, full):
     """
 Commands:
 
@@ -41,7 +42,7 @@ Commands:
         period = 3600*period.tm_hour + 60*period.tm_min + period.tm_sec
     
     # connect to device    
-    ut = ut8000(debug=debug)
+    ut = ut8000(debug=debug, full=full)
     if json:
         ut.format="json"
 
@@ -292,12 +293,13 @@ class ut8000:
             )
 
 
-    def __init__(self, debug=False):
+    def __init__(self, debug=False, full=False):
         self.buf = bytearray()
         self.ID = None
         self.iface = cp2110.CP2110Device()
         self.package_no = 0
         self.debug = debug
+        self.full = full
         self.data = deque()
         self.format = "csv"
         self.first = True
@@ -396,6 +398,9 @@ class ut8000:
                     ("minmax",      "min" if stat["min"] else "max" if stat["max"] else ""),
                     ("err",         "Err" if stat["err"] else ""),
                 ])
+                if not self.full:
+                    if dat["err"] == "Err" or dat["OL"] == "OL":
+                        dat["value"] =""
                 self.data.append(dat)
                 self.package_no += 1
                 if self.debug:
