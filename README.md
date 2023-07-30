@@ -26,9 +26,9 @@ Log to file
     
     ./ut8803e.py log > mydata.csv
 
-Log for 30 seconds
+Log for 30 seconds in JSON format
 
-    ./ut8803e.py -p 0:0:30 log
+    ./ut8803e.py -f json -p 0:0:30 log
 
 Log for 1.5 hours
 
