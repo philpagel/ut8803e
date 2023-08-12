@@ -80,36 +80,37 @@ few options:
 
       Commands:
 
-              log             start logging data
+          log             start logging data
 
-              get_ID          get instrument id
+          get_ID          get instrument id
 
-              brightness      change display brightness (3 steps)
+          brightness      change display brightness (3 steps)
 
-              select          press `select` button
+          select          press `select` button
 
-              range_manual    switch to next manual range
+          range_manual    switch to next manual range
 
-              range_auto      set auto range
+          range_auto      set auto range
 
-              minmax          set/toggle min/max mode
+          minmax          set/toggle min/max mode
 
-              exitminmax      exit min/max mode
+          exitminmax      exit min/max mode
 
-              rel             set relative mode
+          rel             set relative mode
 
-              d_val           capacitor D value
+          d_val           capacitor D value
 
-              q_val           inductance Q value
+          q_val           inductance Q value
 
-              r_val           inductance/capacitor resistance
+          r_val           inductance/capacitor resistance
 
-              exit_dqr        exit DQR mode
+          exit_dqr        exit DQR mode
 
     Options:
-      -p, --period TEXT  Length of logging period [HH:MM:SS]. Max period: 23:59:59
-      -f, --format TEXT  Logging data format (csv/json/reversing)
-      --full             show value even if ERR or OL app
+      -p, --period TEXT       Length of logging period [HH:MM:SS]. Max period: 23:59:59
+      -i, --interval INTEGER  Logging interval [s]
+      -f, --format TEXT       Logging data format (csv/json/reversing)
+      --full                  show value even if ERR or OL app
 
 Most commands act the exact same way as pressing the respective button
 on the instrument. 

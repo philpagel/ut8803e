@@ -84,7 +84,6 @@ class ut8000:
             "r_val"         : b"\x51\x00",
             "exit_dqr"      : b"\x50\x00",
             "confirm"       : b"\x5a\x00",
-            #"unk1"          : b"\x58\x00", # sent by windows software at the begining
             }
 
     # modes
@@ -243,7 +242,7 @@ class ut8000:
             "unk14"         / C.Flag,
             "unk15"         / C.Flag,
             "unk16"         / C.Flag,
-            "serpal"        / C.Flag, # XXX: confirm
+            "unk17"         / C.Flag, # XXX: serial/parallel?
 
             "unk20"         / C.Flag,
             "unk21"         / C.Flag,
