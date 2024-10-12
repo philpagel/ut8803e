@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+[project]
+name = "ut8803e"
+version = "0.0.1"
+description = "Talking to a UNI-T UT8803/UT8803E bench multimeter"
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [
+    {name="Philipp Pagel", email="phil@techboch.org" },
+    ]
+license = {text="BSD 3-Clause License"}
+dependencies = [
+    "click",
+    "pycp2110",
+    "construct",
+]
+[project.scripts]
+ut8803e = "ut8803e.ut8803e:main"
