@@ -96,7 +96,7 @@ coma back and wna tto run the programm.
 This is a simple command line tool that takes exactly on argument and supports a
 few options:
 
-    Usage: ut8803e.py [OPTIONS] CMD
+    Usage: ut8803e [OPTIONS] CMD
 
       Commands:
 
