@@ -46,29 +46,49 @@ Change display brightness
 
 
 
-# Requirements
+# Installation
 
-This program depends on a few Python libraries:
+Form the latest release file, download an installable file (`ut8803e*.tar.gz` or 
+`ut8803e*.whl`) and install it with `pip` or `pipx`.
 
-* [pycp2110](https://github.com/rginda/pycp2110)
-* [construct](https://github.com/construct/construct)
-* [click](https://click.palletsprojects.com)
 
-You can install them like this:
+## Prerequisits
 
-    pip3 install -r requirements.txt
-
-`pycp2110` depends on [pyhidapi](https://github.com/apmorton/pyhidapi) (will be
-installed automatically) which in turn requires the `hidapi` library. You need
-to install that yourself according to the instructions in the link above.
-
-For Debian, this is the way to do it:
+First, you need to install the `hidapi` library:
 
     apt install libhidapi-hidraw0
     
-    # or
+or
 
     apt install libhidapi-libusb0
+
+
+## Install using `pipx` (recommended)
+
+The recommended way of installing is `pipx`. If you don't already have that,
+you need to install it, too:
+
+    apt install pipx
+
+Now, you can run
+    
+    pipx install ut8803e-*.tar.gz 
+
+or
+    
+    pipx install ut8803e-*.whl 
+
+
+## Install using `pip` and `venv` (more involved)
+
+If you use `pip`, instead, you will most likely need to create a venv, first:
+
+    python3 -m venv .venv
+    source .venv/bin/activate
+    python3 -m pip install ut8803e-*.tar.gz 
+
+You will need to repeat the `source` part to activate the venv whenever you 
+coma back and wna tto run the programm.
 
 
 # Usage
