@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 [project]
 name = "ut8803e"
-version = "0.0.1"
+version = "0.0.2"
 description = "Talking to a UNI-T UT8803/UT8803E bench multimeter"
 readme = "README.md"
 requires-python = ">=3.8"

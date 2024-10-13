@@ -1,0 +1,2 @@
+# Make CP2110 usb hid devices user read/writeable
+KERNEL=="hidraw*", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea80", MODE="0666“

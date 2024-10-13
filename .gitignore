@@ -2,3 +2,4 @@
 *.swp
 .venv
 dist/
+src/ut8803e.egg-info/

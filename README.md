@@ -7,54 +7,62 @@ This is an implementation of the data protocol used by the UNI-T UT8803E
 # Status 
 
 The software provides all functionality of the original vendor software (but
-without a GUI) plus a few things that are not available in the windows
-program. However, it is not feature complete, yet: There are still a few status
-flags that seem to exist but I haven't figured out their meaning, yet.
+without a GUI) plus a few things that are not available in the windows program.
+However, there are still a few status flags that seem to exist but I haven't
+figured out their meaning, yet.
 
 It has been tested successfully with a UT8803E on LINUX (Debian 12).
+
+I think it should also work on MacOS or Windows, but that is untested.  If you
+have successfully tested it on those systems, please let me know and I'll update
+this statement.
+
+I no longer own the multimeter so if you find a bug I will need your help for
+testing.
 
 
 # In a nutshell
 
 Start logging data
 
-    ./ut8803e.py log
+    ut8803e log
 
 Log to file
     
-    ./ut8803e.py log > mydata.csv
+    ut8803e log > mydata.csv
 
 Log for 30 seconds in JSON format
 
-    ./ut8803e.py -f json -p 0:0:30 log
+    ut8803e -f json -p 0:0:30 log
 
 Log for 1.5 hours
 
-    ./ut8803e.py -p 1:30:00 log
+    ut8803e -p 1:30:00 log
 
 Get device-ID
 
-    ./ut8803e.py get_ID
+    ut8803e get_ID
 
 Toggle `hold`
 
-    ./ut8803e.py hold
+    ut8803e hold
 
 Change display brightness 
 
-    ./ut8803e.py brightness
+    ut8803e brightness
 
 
 
 # Installation
 
-Form the latest release file, download an installable file (`ut8803e*.tar.gz` or 
+From the latest release file, download an installable file (`ut8803e*.tar.gz` or 
 `ut8803e*.whl`) and install it with `pip` or `pipx`.
 
 
-## Prerequisits
+## Prerequisites
 
-First, you need to install the `hidapi` library:
+First, you need to install the `hidapi` library. On a Debian system it is provided by two
+different libraries, so you can do:
 
     apt install libhidapi-hidraw0
     
@@ -62,6 +70,38 @@ or
 
     apt install libhidapi-libusb0
 
+
+If you are on Windows, you need to download the zip file from the latest
+release on the [hidapi repository](https://github.com/libusb/hidapi) on github
+and the following permission discussion does not apply. For MacOS, I have no
+clue. Please let me know if you do.
+
+When plugging in the device, it will show up as `/dev/usbhidraw*`, be 
+owned by root and not accessible to regular users:
+
+    $ ls -la /dev/hid*
+    crw------- 1 root root 241, 0 Okt 12 17:15 /dev/hidraw0
+
+So running the program as a regular user will fail. For initial testing, you can
+run as root:
+
+    sudo ut8803e
+
+But it is not recommended to do that for productive use. Instead, you need to install 
+a `udev` rule file that makes the device user accessible. Create a file 
+[`/etc/udev/rules.d/50-CP2110-hid.rules`](50-CP2110-hid.rules) and put this into it:
+
+    # Make CP2110 usb hid devices user read/writeable
+    KERNEL=="hidraw*", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea80", MODE="0666“
+
+Or just copy the file provided in this repository.
+
+After re-plugging the multimeter, it should appear like this:
+
+    $ ls -la /dev/hid*
+    crw-rw-rw- 1 root root 241, 0 Okt 12 17:15 /dev/hidraw0
+
+So now, regular users can read from and write to it.
 
 ## Install using `pipx` (recommended)
 
@@ -88,7 +128,7 @@ If you use `pip`, instead, you will most likely need to create a venv, first:
     python3 -m pip install ut8803e-*.tar.gz 
 
 You will need to repeat the `source` part to activate the venv whenever you 
-coma back and wna tto run the programm.
+coma back and want to run the program.
 
 
 # Usage
@@ -158,16 +198,13 @@ covering that. Sorry – only in German right now.
 # Contributing
 
 If you are interested to contribute, please open an issue that clearly
-describes the change, feature or bugfix that you would like to suggest.  If you
-want to implement or fix something yourself, you can submit a pull-request that
-addresses your issue. It makes sense to first discuss the issue before you get
-to work with coding. Please open a new branch for your pull request – do not
-use `main`.
+describes the change, feature or bugfix that you would like to suggest. Please do not
+submit pull requests without discussing the issue first.
 
 The UNI-T programming manual suggests that there are at least two more status flags that
 haven't been implemented, yet and that I do not understand:
 
-* Series/Parallel (SER/PAL/) in capacity and inductance mode. There are
+* Series/Parallel (SER/PAL) in capacity and inductance mode. There are
   corresponding indicators on the LCD but I have no idea what that means.
 * Over/underflow – again not sure what exactly that is supposed to be.
   
