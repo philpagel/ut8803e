@@ -17,9 +17,6 @@ I think it should also work on MacOS or Windows, but that is untested.  If you
 have successfully tested it on those systems, please let me know and I'll update
 this statement.
 
-I no longer own the multimeter so if you find a bug I will need your help for
-testing.
-
 
 # In a nutshell
 
